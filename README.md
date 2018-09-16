@@ -10,7 +10,8 @@ Exposes your Ajax Security devices in Home Assistant:
 - Ajax FireProtect
 
 ## Setup
-	Place entire contents in */custom_components* folder
+
+Place entire contents in **/custom_components** folder
 	
 ```yaml
 # configuration.yaml
@@ -25,7 +26,7 @@ Configuration variables:
 - **username** (*Required*): Your login username
 - **password** (*Required*): Your login password
 
-For security purposes create and use another Ajax Account with user-mode rights.
+**For security purposes create and use another Ajax Account with user-mode rights.**
 
 ## Disclaimer
 This software is supplied "AS IS" without any warranties and support.
