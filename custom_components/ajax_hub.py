@@ -69,7 +69,7 @@ class AjaxSystems(Entity):
         self.hubs = {}
         for device in d["data"]:
             self.hubs[device] =  AjaxHub(self, device, d["data"][device])
-        _LOGGER.debug("AjaxHub result "  +response.content.decode('utf-8'))       
+        _LOGGER.debug("AjaxSystems result "  +response.content.decode('utf-8'))       
 
         for component in ['switch' ,'binary_sensor']:
             discovery.load_platform(hass, component, DOMAIN, {}, {})
@@ -87,9 +87,7 @@ class AjaxSystems(Entity):
         
     def _listen_to_msg(self):
         client = sseclient.SSEClient(self.s.get('https://app.ajax.systems/SecurConfig/api/dashboard/sse', stream=True))
-        for event in client.events():
-            _LOGGER.error("AjaxHub result "  + event.data)
-        
+        for event in client.events():        
             jdata = json.loads(event.data)
             if 'objectId' in jdata['data']:
                 sid = int(jdata['data']['objectId'])
