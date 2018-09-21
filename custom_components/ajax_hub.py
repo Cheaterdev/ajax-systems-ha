@@ -4,6 +4,7 @@ import json
 import voluptuous as vol
 import sseclient
 import requests
+import time
 from collections import defaultdict
 from requests_toolbelt.utils import dump
 from homeassistant.core import callback
@@ -67,8 +68,11 @@ class AjaxSystems(Entity):
         _LOGGER.debug("AjaxSystems result "  + response.content.decode('utf-8'))
         
         self.hubs = {}
+        
         for device in d["data"]:
             self.hubs[device] =  AjaxHub(self, device, d["data"][device])
+            self._any_hub_id = self.hubs[device]._hid;
+
         _LOGGER.debug("AjaxSystems result "  +response.content.decode('utf-8'))       
 
         for component in ['switch' ,'binary_sensor']:
@@ -79,6 +83,11 @@ class AjaxSystems(Entity):
         thread.daemon = True
         thread.start()
 
+
+        thread2 = Thread(target=self._read_logs, args=())
+        self._threads.append(thread2)
+        thread2.daemon = True
+        thread2.start()
 
     def set_switch_state(self, hub, device, state):
         payload = {'hubID': hub._hid, 'objectType':'31', 'deviceID':device._hid, 'command':6 if state == True else 7}
@@ -98,7 +107,13 @@ class AjaxSystems(Entity):
                 if found == False:
                     _LOGGER.debug("Unknown: "  + event.data)
 
-
+    def _read_logs(self):
+        while True:
+            payload = {'hubId': self._any_hub_id, 'count':1, 'offset':0}
+            response = self.s.post('https://app.ajax.systems/SecurConfig/api/dashboard/getLogs', data=payload )
+            _LOGGER.error("_read_logs result "  +response.content.decode('utf-8'))
+            time.sleep(60)
+        
 class AjaxDevice:
     def __init__(self, device, ajax_hub):
         self._id = int(device["objectId"])
