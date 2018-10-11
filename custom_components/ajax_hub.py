@@ -51,15 +51,10 @@ class AjaxSystems(Entity):
         self.s = requests.Session() 
         self._threads = []
         self.callbacks = defaultdict(list)
+        self._config = config
 
-        payload = {'j_username': config[CONF_USERNAME], 'j_password':config[CONF_PASSWORD]}
-		
-        response = self.s.post('https://app.ajax.systems/api/account/do_login', data=payload)
-        _LOGGER.debug("AjaxSystems "  + response.content.decode('utf-8'))
-		
-        response = self.s.post('https://app.ajax.systems/SecurConfig/api/account/getCsaConnection')
-        _LOGGER.debug("AjaxSystems result "  + response.content.decode('utf-8'))
-			
+        self.authorize()
+
         response = self.s.post('https://app.ajax.systems/SecurConfig/api/account/getUserData')
         _LOGGER.debug("AjaxSystems result "  + response.content.decode('utf-8'))
         
@@ -71,7 +66,7 @@ class AjaxSystems(Entity):
         
         for device in d["data"]:
             self.hubs[device] =  AjaxHub(self, device, d["data"][device])
-            self._any_hub_id = self.hubs[device]._hid;
+            self._any_hub_id = self.hubs[device]._hid
 
         _LOGGER.debug("AjaxSystems result "  +response.content.decode('utf-8'))       
 
@@ -89,29 +84,45 @@ class AjaxSystems(Entity):
         thread2.daemon = True
         thread2.start()
 
+    def authorize(self):
+        payload = {'j_username': self._config[CONF_USERNAME], 'j_password':self._config[CONF_PASSWORD]}
+		
+        response = self.s.post('https://app.ajax.systems/api/account/do_login', data=payload)
+        _LOGGER.debug("AjaxSystems "  + response.content.decode('utf-8'))
+		
+        response = self.s.post('https://app.ajax.systems/SecurConfig/api/account/getCsaConnection')
+        _LOGGER.debug("AjaxSystems result "  + response.content.decode('utf-8'))
+
+
+
     def set_switch_state(self, hub, device, state):
         payload = {'hubID': hub._hid, 'objectType':'31', 'deviceID':device._hid, 'command':6 if state == True else 7}
         response = self.s.post('https://app.ajax.systems/SecurConfig/api/dashboard/sendCommand', data=payload)
         _LOGGER.debug("set_switch_state result "  +str(hub._hid) + " " +str(device._id) + " " +response.content.decode('utf-8'))
         
     def _listen_to_msg(self):
-        client = sseclient.SSEClient(self.s.get('https://app.ajax.systems/SecurConfig/api/dashboard/sse', stream=True))
-        for event in client.events():        
-            jdata = json.loads(event.data)
-            if 'objectId' in jdata['data']:
-                sid = int(jdata['data']['objectId'])
-                found = False
-                for func in self.callbacks[sid]:
-                    func(jdata['data'], event.data)
-                    found = True
-                if found == False:
-                    _LOGGER.debug("Unknown: "  + event.data)
-
+        while True:
+            client = sseclient.SSEClient(self.s.get('https://app.ajax.systems/SecurConfig/api/dashboard/sse', stream=True))
+            for event in client.events():        
+                jdata = json.loads(event.data)
+                if 'objectId' in jdata['data']:
+                    sid = int(jdata['data']['objectId'])
+                    found = False
+                    for func in self.callbacks[sid]:
+                        func(jdata['data'], event.data)
+                        found = True
+                    if found == False:
+                        _LOGGER.debug("Unknown: "  + event.data)
+                else:
+                    _LOGGER.debug("_listen_to_msg: "  + event.data)
+            _LOGGER.error("_listen_to_msg ENDED")
+            self.authorize()
+            
     def _read_logs(self):
         while True:
             payload = {'hubId': self._any_hub_id, 'count':1, 'offset':0}
             response = self.s.post('https://app.ajax.systems/SecurConfig/api/dashboard/getLogs', data=payload )
-            _LOGGER.error("_read_logs result "  +response.content.decode('utf-8'))
+            _LOGGER.debug("_read_logs result "  +response.content.decode('utf-8'))
             time.sleep(60)
         
 class AjaxDevice:
