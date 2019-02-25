@@ -1,3 +1,7 @@
+#DEPRECATED 
+ajax web page is not working anymore, there is no API left for now
+
+
 # ajax-systems-ha
 Ajax Security integration into Home Assistant
 
